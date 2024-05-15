@@ -6,6 +6,7 @@ using Azure.Storage.Blobs;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Extensions.Logging;
+using Microsoft.WindowsAzure.Storage.File;
 
 namespace UnzipFileFunction
 {
@@ -41,15 +42,25 @@ namespace UnzipFileFunction
                         {
                             continue;
                         }
-
+                        
+                        
                         // Create a blob client for the output file
                         var blobClient = blobContainerClient.GetBlobClient(entry.FullName);
 
                         // Upload the extracted file to the output blob
-                        using (var outputStream = await blobClient.OpenWriteAsync(true))
                         using (var entryStream = entry.Open())
                         {
-                            await entryStream.CopyToAsync(outputStream);
+                            byte[] buffer = new byte[16 * 1024];
+                            using (var outputStream = await blobClient.OpenWriteAsync(true))
+                            {
+                                int read;
+                                while ((read = entryStream.Read(buffer, 0, buffer.Length)) > 0)
+                                {
+                                    outputStream.Write(buffer, 0, read);
+                                }
+
+                                await entryStream.CopyToAsync(outputStream);
+                            }
                         }
 
                         logger.LogInformation($"Extracted file '{entry.FullName}'");
